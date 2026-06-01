@@ -29,7 +29,7 @@ spec:
           image: "busybox:{{ .Values.app.busyboxTag }}"
           imagePullPolicy: IfNotPresent
           securityContext:
-            {{- toYaml .Values.app.securityContext | nindent 12 }}
+            {{- toYaml .Values.app.initSecurityContext | nindent 12 }}
           command:
             - /bin/sh
             - -c

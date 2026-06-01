@@ -42,7 +42,7 @@ spec:
           imagePullPolicy: {{ .Values.nginx.image.pullPolicy }}
           ports:
             - name: http
-              containerPort: 80
+              containerPort: {{ .Values.nginx.containerPort }}
               protocol: TCP
           livenessProbe:
             tcpSocket:

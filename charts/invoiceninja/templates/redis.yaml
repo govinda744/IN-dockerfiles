@@ -23,6 +23,18 @@ spec:
         - name: redis
           image: "{{ .Values.redis.image.repository }}:{{ .Values.redis.image.tag }}"
           imagePullPolicy: {{ .Values.redis.image.pullPolicy }}
+          {{- if .Values.secret.redisPassword }}
+          command:
+            - redis-server
+            - --requirepass
+            - $(REDISCLI_AUTH)
+          env:
+            - name: REDISCLI_AUTH
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "invoiceninja.fullname" . }}-secret
+                  key: REDIS_PASSWORD
+          {{- end }}
           ports:
             - name: redis
               containerPort: 6379
