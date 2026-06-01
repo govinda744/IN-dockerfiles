@@ -31,8 +31,8 @@ data:
   MAIL_ENCRYPTION: {{ .Values.env.mailEncryption | quote }}
   MAIL_FROM_ADDRESS: {{ .Values.env.mailFromAddress | quote }}
   MAIL_FROM_NAME: {{ .Values.env.mailFromName | quote }}
-  MYSQL_DATABASE: {{ .Values.env.mysqlDatabase | quote }}
-  MYSQL_USER: {{ .Values.env.mysqlUser | quote }}
+  MYSQL_DATABASE: {{ .Values.env.dbDatabase | quote }}
+  MYSQL_USER: {{ .Values.env.dbUsername | quote }}
   NORDIGEN_SECRET_ID: {{ .Values.env.nordigenSecretId | quote }}
   NORDIGEN_SECRET_KEY: {{ .Values.env.nordigenSecretKey | quote }}
   IS_DOCKER: {{ .Values.env.isDocker | quote }}
@@ -52,7 +52,7 @@ data:
     fastcgi_buffers 32 16K;
     gzip on;
     gzip_comp_level 2;
-    gzip_min_length 1M;
+    gzip_min_length 1000;
     gzip_proxied any;
     gzip_types *;
   laravel.conf: |

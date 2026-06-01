@@ -6,8 +6,19 @@ app:
     repository: invoiceninja/invoiceninja-debian
     tag: latest
     pullPolicy: IfNotPresent
+  # Tag for the busybox init container that waits for MySQL/Redis.
+  busyboxTag: "1.36"
+  # NOTE: replicaCount > 1 requires ReadWriteMany storage for appPublic and
+  # appStorage. The default ReadWriteOnce PVCs can only bind to one node.
   replicaCount: 1
   resources: {}
+  # NOTE: you can set these if needed. You might need to tweak the values below
+  # resources:
+  #   requests:
+  #     cpu: 100m
+  #     memory: 256Mi
+  #   limits:
+  #     memory: 512Mi
   podSecurityContext:
     seccompProfile:
       type: RuntimeDefault
@@ -56,6 +67,8 @@ mysql:
     seccompProfile:
       type: RuntimeDefault
   securityContext:
+    # MySQL's initialization scripts require privilege escalation; this cannot
+    # be set to false without a custom entrypoint.
     allowPrivilegeEscalation: true
     capabilities:
       drop:
@@ -123,6 +136,8 @@ ingress:
   tls: []
 
 secret:
+  # REQUIRED: generate with `php artisan key:generate --show` or
+  # openssl rand -base64 32 | sed 's/^/base64:/'
   appKey: ""
   dbPassword: ninja
   dbRootPassword: ninjaAdm1nPassword
@@ -131,12 +146,14 @@ secret:
   inPassword: changeme!
 
 env:
+  # REQUIRED: set to the URL users will access the app on, e.g. https://invoices.example.com
   appUrl: http://localhost
   appEnv: production
-  appDebug: "true"
+  appDebug: "false"
   requireHttps: "false"
   phantomjsPdfGeneration: "false"
   pdfGenerator: snappdf
+  # trustedProxies: restrict to your ingress controller/gateway API's CIDR in production
   trustedProxies: "*"
   cacheDriver: redis
   queueConnection: redis
@@ -144,6 +161,8 @@ env:
   redisPort: "6379"
   filesystemDisk: debian_docker
   dbPort: "3306"
+  # dbDatabase and dbUsername are shared by both the app and the MySQL container.
+  # Change both env.dbDatabase/dbUsername and secret.dbPassword together.
   dbDatabase: ninja
   dbUsername: ninja
   dbConnection: mysql
@@ -155,8 +174,6 @@ env:
   mailEncryption: "null"
   mailFromAddress: user@example.com
   mailFromName: Self Hosted User
-  mysqlDatabase: ninja
-  mysqlUser: ninja
   nordigenSecretId: ""
   nordigenSecretKey: ""
   isDocker: "true"
