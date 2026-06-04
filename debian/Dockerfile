@@ -19,7 +19,7 @@ FROM php:${PHP}-fpm
 
 # PHP modules
 ARG php_require="bcmath gd mbstring pdo_mysql zip"
-ARG php_suggest="exif imagick intl pcntl saxon soap"
+ARG php_suggest="exif imagick intl pcntl saxon-12.5.0 soap"
 ARG php_extra="opcache"
 
 # Install system dependencies
@@ -58,7 +58,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install PHP extensions
 COPY --from=ghcr.io/mlocati/php-extension-installer /usr/bin/install-php-extensions /usr/local/bin/
 
-RUN install-php-extensions \
+# IPE_SAXON_EDITION=HE: install the free Home Edition (XSLT 3.0 is enough for
+# e-invoice transforms); the installer otherwise defaults to the commercial EE,
+# whose distribution layout breaks the configure step.
+RUN IPE_SAXON_EDITION=HE install-php-extensions \
     ${php_require} \
     ${php_suggest} \
     ${php_extra}
