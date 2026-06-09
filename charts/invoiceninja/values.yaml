@@ -1,0 +1,222 @@
+namespace:
+  # Set to true to have the chart create and label the release namespace.
+  # The namespace is labelled enforce:baseline because the app container
+  # runs supervisord as root and MariaDB requires allowPrivilegeEscalation.
+  # warn/audit are set to restricted so remaining violations are still logged.
+  #
+  # If false, create and label the namespace manually before installing:
+  #   kubectl create namespace <name>
+  #   kubectl label namespace <name> \
+  #     pod-security.kubernetes.io/enforce=baseline \
+  #     pod-security.kubernetes.io/warn=restricted \
+  #     pod-security.kubernetes.io/audit=restricted
+  create: true
+
+nameOverride: ""
+fullnameOverride: ""
+
+app:
+  image:
+    repository: invoiceninja/invoiceninja-debian
+    tag: latest
+    pullPolicy: IfNotPresent
+  # Tag for the busybox init container that waits for MySQL/Redis.
+  busyboxTag: "1.36"
+  # NOTE: replicaCount > 1 requires ReadWriteMany storage for appPublic and
+  # appStorage. The default ReadWriteOnce PVCs can only bind to one node.
+  replicaCount: 1
+  resources: {}
+  # NOTE: you can set these if needed. You might need to tweak the values below
+  # resources:
+  #   requests:
+  #     cpu: 100m
+  #     memory: 256Mi
+  #   limits:
+  #     memory: 512Mi
+  podSecurityContext:
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: false
+    # runAsNonRoot cannot be set: the image starts supervisord as root.
+    # To harden this, the upstream image would need a non-root entrypoint.
+    capabilities:
+      # https://github.com/invoiceninja/dockerfiles/issues/769#issuecomment-3464415892
+      add:
+        - SETGID # needed for runuser
+        - SETUID # needed for runuser
+        - DAC_OVERRIDE # needed for mv
+        - FOWNER # needed for mv
+        - CHOWN # needed for mv
+      drop:
+        - ALL
+  initSecurityContext:
+    allowPrivilegeEscalation: false
+    runAsNonRoot: true
+    runAsUser: 65534 # nobody — busybox has no named non-root user
+    capabilities:
+      drop:
+        - ALL
+
+nginx:
+  image:
+    # nginx-unprivileged runs as uid 101 and listens on 8080, satisfying the
+    # restricted PodSecurity policy without needing the CHOWN capability.
+    repository: nginxinc/nginx-unprivileged
+    tag: alpine
+    pullPolicy: IfNotPresent
+  replicaCount: 1
+  # containerPort must match the listen port in the nginx config.
+  # nginx-unprivileged cannot bind to ports < 1024; keep this at 8080.
+  containerPort: 8080
+  service:
+    type: ClusterIP
+    port: 80
+  resources: {}
+  podSecurityContext:
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    allowPrivilegeEscalation: false
+    runAsNonRoot: true
+    runAsUser: 101 # nginx user in nginxinc/nginx-unprivileged
+    capabilities:
+      drop:
+        - ALL
+  initSecurityContext:
+    allowPrivilegeEscalation: false
+    runAsNonRoot: true
+    capabilities:
+      drop:
+        - ALL
+
+mysql:
+  image:
+    repository: mariadb
+    tag: "lts"
+    pullPolicy: IfNotPresent
+  service:
+    port: 3306
+  resources: {}
+  podSecurityContext:
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    allowPrivilegeEscalation: false
+    runAsNonRoot: true
+    runAsUser: 999 # mysql user in mariadb image
+    capabilities:
+      drop:
+        - ALL
+  nodeSelector: {}
+  affinity: {}
+  tolerations: []
+
+redis:
+  image:
+    repository: redis
+    tag: alpine
+    pullPolicy: IfNotPresent
+  service:
+    port: 6379
+  resources: {}
+  podSecurityContext:
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    allowPrivilegeEscalation: false
+    runAsNonRoot: true
+    runAsUser: 999 # redis user in redis:alpine
+    capabilities:
+      drop:
+        - ALL
+
+persistence:
+  appPublic:
+    enabled: false
+    accessModes:
+      - ReadWriteOnce
+    size: 1Gi
+    storageClassName: ""
+  appStorage:
+    enabled: false
+    accessModes:
+      - ReadWriteOnce
+    size: 5Gi
+    storageClassName: ""
+  mysqlData:
+    enabled: false
+    accessModes:
+      - ReadWriteOnce
+    size: 10Gi
+    storageClassName: ""
+  redisData:
+    enabled: false
+    accessModes:
+      - ReadWriteOnce
+    size: 1Gi
+    storageClassName: ""
+
+serviceAccount:
+  create: false
+  name: ""
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: invoiceninja.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+secret:
+  # REQUIRED: generate with `php artisan key:generate --show` or
+  # openssl rand -base64 32 | sed 's/^/base64:/'
+  appKey: ""
+  dbPassword: ninja
+  dbRootPassword: ninjaAdm1nPassword
+  redisPassword: ""
+  inUserEmail: admin@example.com
+  inPassword: changeme!
+
+env:
+  # REQUIRED: set to the URL users will access the app on, e.g. https://invoices.example.com
+  appUrl: http://localhost
+  appEnv: production
+  appDebug: "false"
+  requireHttps: "false"
+  phantomjsPdfGeneration: "false"
+  pdfGenerator: snappdf
+  # trustedProxies: restrict to your ingress controller/gateway API's CIDR in production
+  trustedProxies: "*"
+  cacheDriver: redis
+  queueConnection: redis
+  sessionDriver: redis
+  redisPort: "6379"
+  filesystemDisk: debian_docker
+  dbPort: "3306"
+  # dbDatabase and dbUsername are shared by both the app and the MySQL container.
+  # Change both env.dbDatabase/dbUsername and secret.dbPassword together.
+  dbDatabase: ninja
+  dbUsername: ninja
+  dbConnection: mysql
+  mailMailer: log
+  mailHost: smtp.mailtrap.io
+  mailPort: "2525"
+  mailUsername: "null"
+  mailPassword: "null"
+  mailEncryption: "null"
+  mailFromAddress: user@example.com
+  mailFromName: Self Hosted User
+  nordigenSecretId: ""
+  nordigenSecretKey: ""
+  isDocker: "true"
+  scoutDriver: "null"
+
+tolerations: []
+affinity: {}
+nodeSelector: {}
