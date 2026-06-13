@@ -1,17 +1,3 @@
-namespace:
-  # Set to true to have the chart create and label the release namespace.
-  # The namespace is labelled enforce:baseline because the app container
-  # runs supervisord as root and MariaDB requires allowPrivilegeEscalation.
-  # warn/audit are set to restricted so remaining violations are still logged.
-  #
-  # If false, create and label the namespace manually before installing:
-  #   kubectl create namespace <name>
-  #   kubectl label namespace <name> \
-  #     pod-security.kubernetes.io/enforce=baseline \
-  #     pod-security.kubernetes.io/warn=restricted \
-  #     pod-security.kubernetes.io/audit=restricted
-  create: true
-
 nameOverride: ""
 fullnameOverride: ""
 
@@ -39,22 +25,23 @@ app:
   securityContext:
     allowPrivilegeEscalation: false
     readOnlyRootFilesystem: false
-    # runAsNonRoot cannot be set: the image starts supervisord as root.
+    # runAsNonRoot cannot be set to true because the image starts supervisord as root.
     # To harden this, the upstream image would need a non-root entrypoint.
+    runAsNonRoot: false
     capabilities:
       # https://github.com/invoiceninja/dockerfiles/issues/769#issuecomment-3464415892
       add:
-        - SETGID # needed for runuser
-        - SETUID # needed for runuser
-        - DAC_OVERRIDE # needed for mv
-        - FOWNER # needed for mv
-        - CHOWN # needed for mv
+        - SETGID  # needed for runuser
+        - SETUID  # needed for runuser
+        - DAC_OVERRIDE  # needed for mv
+        - FOWNER  # needed for mv
+        - CHOWN  # needed for mv
       drop:
         - ALL
   initSecurityContext:
     allowPrivilegeEscalation: false
     runAsNonRoot: true
-    runAsUser: 65534 # nobody — busybox has no named non-root user
+    runAsUser: 65534  # nobody — busybox has no named non-root user
     capabilities:
       drop:
         - ALL
@@ -80,13 +67,13 @@ nginx:
   securityContext:
     allowPrivilegeEscalation: false
     runAsNonRoot: true
-    runAsUser: 101 # nginx user in nginxinc/nginx-unprivileged
+    runAsUser: 101  # nginx user in nginxinc/nginx-unprivileged
     capabilities:
       drop:
         - ALL
   initSecurityContext:
     allowPrivilegeEscalation: false
-    runAsNonRoot: true
+    runAsNonRoot: false
     capabilities:
       drop:
         - ALL
@@ -105,7 +92,7 @@ mysql:
   securityContext:
     allowPrivilegeEscalation: false
     runAsNonRoot: true
-    runAsUser: 999 # mysql user in mariadb image
+    runAsUser: 999  # mysql user in mariadb image
     capabilities:
       drop:
         - ALL
@@ -127,7 +114,7 @@ redis:
   securityContext:
     allowPrivilegeEscalation: false
     runAsNonRoot: true
-    runAsUser: 999 # redis user in redis:alpine
+    runAsUser: 999  # redis user in redis:alpine
     capabilities:
       drop:
         - ALL
