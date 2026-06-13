@@ -1,0 +1,4 @@
+secret:
+  # Dummy key in valid Laravel format (base64-encoded 32 zero bytes).
+  # The app will start but any encrypted data will be garbage — fine for CI.
+  appKey: "base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
